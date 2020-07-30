@@ -18,14 +18,15 @@ def main():
         pdf = pdftotext.PDF(f)
 
     # TODO Decide how much text to query with
+    # TODO Count number of pages and use more for books
 
-    first_lines = ' '.join(pdf[0].split('\n')[:10])
+    first_lines = ' '.join(pdf[0].split('\n'))
     query_raw = re.sub(r'\s+', ' ', first_lines).strip().split(' ')
     query_unique = []
     for q in query_raw:
         if q not in query_unique:
             query_unique.append(q)
-    query = ' '.join(query_unique)
+    query = ' '.join(query_unique[:100]).encode('ascii', 'ignore')
 
     print(' QUERY '.center(80, '='))
     print(query)
@@ -35,7 +36,7 @@ def main():
     # TODO Decide what fields to return
 
     cr = habanero.Crossref()
-    result = cr.works(query=query, limit=20)
+    result = cr.works(query_bibliographic=query, limit=20)
 
     print(' RESULTS '.center(80, '='))
     for i in range(20):
