@@ -13,6 +13,6 @@ setuptools.setup(
     url='https://github.com/sdahdah/pdflookup',
     packages=setuptools.find_packages(),
     entry_points={
-        'console_scripts': ['pdflookup=pdflookup:main'],
+        'console_scripts': ['pdflookup=pdflookup.pdflookup:main'],
     }
 )
