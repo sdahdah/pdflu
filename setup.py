@@ -14,5 +14,6 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     entry_points={
         'console_scripts': ['pdflookup=pdflookup.pdflookup:main'],
-    }
+    },
+    install_requires=['habanero', 'pdftotext'],
 )
