@@ -10,6 +10,7 @@ import configparser
 import pdfminer.high_level
 import pdfminer.layout
 import termcolor
+import pyperclip
 
 
 def main():
@@ -135,22 +136,51 @@ def main():
     query = query.strip()
 
     # Send Query
-    print(f'Searching Crossref with query `{query}`')
+    print(termcolor.colored('Querying Crossref with:', 'yellow'))
+    print(f'`{query}`')
     cr = habanero.Crossref()
     result = cr.works(query_bibliographic=query,
                       limit=conf.getint('config', 'max_query_results'))
 
     # Print results
-    print(' RESULTS '.center(80, '='))
-    for i in range(20):
-        title = result['message']['items'][i].get('title', ['NO TITLE'])[0]
-        author = result['message']['items'][i].get('author', ['NO AUTHOR'])[0]
-        doi = result['message']['items'][i].get('DOI', ['NO DOI'])
-        pub = result['message']['items'][i].get('publisher', ['NO PUB'])
-        print(f"({i + 1}) {termcolor.colored(title, 'yellow')}")
-        print(f'    {author}')
-        print(f'    {doi}')
-        print(f'    {pub}')
-        # print(result['message']['items'][i].keys())
+    print()
+    print(termcolor.colored('Crossref query results:', 'yellow'))
+    for i in range(conf.getint('config', 'max_query_results')):
+        title = result['message']['items'][i].get('title', [''])[0]
+        authors = result['message']['items'][i].get('author', '')
+        author_name_list = []
+        for entry in authors:
+            author_name_list.append(entry['family'] + ', ' + entry['given'])
+        author_names = '; '.join(author_name_list)
+        doi = result['message']['items'][i].get('DOI', '')
+        pub = result['message']['items'][i].get('publisher', '')
+        print(termcolor.colored(f'{i+1}. {title}', 'white', attrs=['bold']))
+        print(f"   {author_names}")
+        print(f"   {pub}")
+        print(f"   {doi}")
 
-    breakpoint()
+    print()
+    while True:
+        try:
+            selected_result = int(input(termcolor.colored('Select a result: ',
+                                                          'yellow'))) - 1
+            if selected_result < 0:
+                raise ValueError
+            if selected_result >= conf.getint('config', 'max_query_results'):
+                raise ValueError
+        except ValueError:
+            continue
+        else:
+            break
+
+    bib_entry = habanero.cn.content_negotiation(
+        ids=result['message']['items'][selected_result]['DOI'],
+        format='bibentry')
+
+    print()
+    print(termcolor.colored('BibTeX entry:', 'yellow'))
+    print(bib_entry)
+
+    print()
+    print(termcolor.colored('BibTeX entry copied to clipboard.', 'yellow'))
+    pyperclip.copy(bib_entry)
