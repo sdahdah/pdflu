@@ -155,9 +155,12 @@ def main():
         doi = result['message']['items'][i].get('DOI', '')
         pub = result['message']['items'][i].get('publisher', '')
         print(termcolor.colored(f'{i+1}. {title}', 'white', attrs=['bold']))
-        print(f"   {author_names}")
-        print(f"   {pub}")
-        print(f"   {doi}")
+        if author_names != '':
+            print(f"   {author_names}")
+        if pub != '':
+            print(f"   {pub}")
+        if doi != '':
+            print(f"   {doi}")
 
     print()
     while True:
