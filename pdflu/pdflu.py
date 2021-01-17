@@ -11,6 +11,48 @@ import pdfminer.high_level
 import pdfminer.layout
 import termcolor
 import pyperclip
+import arxiv
+
+
+class CrossrefResult():
+    def __init__(self, title, authors, publisher, doi):
+        self.title = title
+        self.authors = authors
+        self.publisher = publisher
+        self.doi = doi
+        self._bibtex = None
+
+    def get_itemize(self, prefix):
+        string = f"{prefix}{self.title}"
+        if self.authors != '':
+            string += f"\n{' '*len(prefix)}{self.authors}"
+        if self.publisher != '':
+            string += f"\n{' '*len(prefix)}{self.publisher}"
+        if self.doi != '':
+            string += f"\n{' '*len(prefix)}{self.doi}"
+        return string
+
+    def get_bibtex(self, force_update=False):
+        if (self._bibtex is None) or force_update:
+            if self.doi != '':
+                self._bibtex = habanero.cn.content_negotiation(
+                    ids=self.doi, format='bibentry')
+            else:
+                self._bibtex = None
+                # TODO Use logger here
+                print('No DOI, could not fetch bibtex')
+        return self._bibtex
+
+
+class ArxivResult():
+    def __init__(self):
+        pass
+
+    def get_itemize(self, prefix):
+        pass
+
+    def get_bibtex(self, force_update=False):
+        pass
 
 
 def main():
@@ -28,6 +70,7 @@ def main():
         localappdata = pathlib.Path(os.environ.get('LOCALAPPDATA'))
         default_conf_path = localappdata.joinpath('pdflu/pdflu.conf')
 
+    # Set up arguments
     parser = argparse.ArgumentParser(
         description='Command line tool to find BibTeX for academic papers '
         'using Crossref.')
@@ -78,11 +121,44 @@ def main():
         logging.critical(f'Specified config file `{args.file}` is not a file.')
         sys.exit(1)
 
+    # Build a query from a PDF file
+    query = construct_query_from_pdf(args.file, conf)
+
+    # Send Query
+    results = query_crossref(query, conf)
+    # res = arxiv.query(query=query, max_results=20)
+
+    if len(results) == 0:
+        # TODO use logger
+        print('No results found')
+        # TODO System exit?
+        return
+
+    # Print results
+    _print_section('Query results:')
+    for i, res in enumerate(results):
+        print(res.get_itemize(f'{i+1}. '))
+
+    # Select a result
+    selected_result = _prompt_result_selection(
+        conf.getint('config', 'max_query_results'))
+    bib_entry = results[selected_result].get_bibtex()
+
+    # Print selected entry
+    _print_section('BibTeX entry:')
+    print(bib_entry)
+
+    # Copy entry to clipboard
+    _print_section('BibTeX entry copied to clipboard.')
+    pyperclip.copy(bib_entry)
+
+
+def construct_query_from_pdf(file, conf):
     # Extract relevant text chunks and their font sizes
     text_chunks = []
     text_sizes = []
     for page_layout in pdfminer.high_level.extract_pages(
-            args.file, maxpages=conf.getint('config', 'max_pages')):
+            file, maxpages=conf.getint('config', 'max_pages')):
         for element in page_layout:
             if isinstance(element, pdfminer.layout.LTTextContainer):
                 text = element.get_text()
@@ -124,7 +200,6 @@ def main():
                             break
                     text_chunks.append(text_stripped)
                     text_sizes.append(char_size)
-
     # Construct query
     threshold_size = max(text_sizes)
     query = ''
@@ -133,57 +208,55 @@ def main():
             if len(query + ' ' + chunk) <= conf.getint('config',
                                                        'max_query_chars'):
                 query += (' ' + chunk)
-    query = query.strip()
+    return query.strip()
 
-    # Send Query
-    print(termcolor.colored('Querying Crossref with:', 'yellow'))
+
+def query_crossref(query, conf):
+    _print_section('Querying Crossref with:')
     print(f'`{query}`')
-    cr = habanero.Crossref()
-    result = cr.works(query_bibliographic=query,
-                      limit=conf.getint('config', 'max_query_results'))
-
-    # Print results
-    print()
-    print(termcolor.colored('Crossref query results:', 'yellow'))
+    crossref = habanero.Crossref()
+    result = crossref.works(query_bibliographic=query,
+                            limit=conf.getint('config', 'max_query_results'))
+    if len(result['message']['items']) == 0:
+        # Logging here
+        print('No results from Crossref')
+        return []
+    results = []
     for i in range(conf.getint('config', 'max_query_results')):
+        # Get metadata
         title = result['message']['items'][i].get('title', [''])[0]
         authors = result['message']['items'][i].get('author', '')
-        author_name_list = []
-        for entry in authors:
-            author_name_list.append(entry['family'] + ', ' + entry['given'])
-        author_names = '; '.join(author_name_list)
         doi = result['message']['items'][i].get('DOI', '')
         pub = result['message']['items'][i].get('publisher', '')
-        print(termcolor.colored(f'{i+1}. {title}', 'white', attrs=['bold']))
-        if author_names != '':
-            print(f"   {author_names}")
-        if pub != '':
-            print(f"   {pub}")
-        if doi != '':
-            print(f"   {doi}")
+        # Format author names
+        author_name_list = []
+        for entry in authors:
+            author_name_list.append(entry['given'] + ' ' + entry['family'])
+        author_names = ' and '.join(author_name_list)
+        # Create CrossrefResult object
+        results.append(CrossrefResult(title, author_names, pub, doi))
+    return results
 
-    print()
+
+def query_arxiv():
+    pass
+
+
+def _print_section(text):
+    print(termcolor.colored(text, 'yellow'))
+
+
+def _prompt_result_selection(max_query_results):
     while True:
         try:
             selected_result = int(input(termcolor.colored('Select a result: ',
                                                           'yellow'))) - 1
             if selected_result < 0:
                 raise ValueError
-            if selected_result >= conf.getint('config', 'max_query_results'):
+            if selected_result >= max_query_results:
                 raise ValueError
         except ValueError:
             continue
         else:
             break
-
-    bib_entry = habanero.cn.content_negotiation(
-        ids=result['message']['items'][selected_result]['DOI'],
-        format='bibentry')
-
-    print()
-    print(termcolor.colored('BibTeX entry:', 'yellow'))
-    print(bib_entry)
-
-    print()
-    print(termcolor.colored('BibTeX entry copied to clipboard.', 'yellow'))
-    pyperclip.copy(bib_entry)
+    return selected_result
