@@ -27,10 +27,13 @@ class CrossrefResult():
                                    attrs=['bold'])
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
+        third_line = []
         if self.publisher != '':
-            string += f"\n{' '*len(prefix)}{self.publisher}"
+            third_line.append(self.publisher)
         if self.doi != '':
-            string += f"\n{' '*len(prefix)}{self.doi}"
+            third_line.append(self.doi)
+        if len(third_line) != 0:
+            string += f"\n{' '*len(prefix)}{', '.join(third_line)}"
         return string
 
     def get_bibtex(self, force_update=False):
@@ -68,11 +71,13 @@ class ArxivResult():
                                    attrs=['bold'])
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
-        if (self.id != '' and self.category != '') or self.doi is not None:
-            string += f"\n{' '*len(prefix)}"
-            string += f"{self.id} [{self.category}]"
-            if self.doi is not None:
-                string += f", {self.doi}"
+        third_line = []
+        if (self.id != '' and self.category != ''):
+            third_line.append(f"{self.id} [{self.category}]")
+        if self.doi is not None:
+            third_line.append(self.doi)
+        if len(third_line) != 0:
+            string += f"\n{' '*len(prefix)}{', '.join(third_line)}"
         return string
 
     def get_bibtex(self, force_update=False):
