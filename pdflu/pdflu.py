@@ -17,13 +17,14 @@ import arxiv
 class CrossrefResult():
     def __init__(self, title, authors, publisher, doi):
         self.title = title
-        self.authors = authors
+        self.authors = ' and '.join(authors)
         self.publisher = publisher
         self.doi = doi
         self._bibtex = None
 
     def get_itemize(self, prefix):
-        string = f"{prefix}{self.title}"
+        string = termcolor.colored(f"{prefix}{self.title} [Crossref]", 'red',
+                                   attrs=['bold'])
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
         if self.publisher != '':
@@ -45,14 +46,59 @@ class CrossrefResult():
 
 
 class ArxivResult():
-    def __init__(self):
-        pass
+    def __init__(self, title, authors, year, url, category, doi):
+        self.title = title
+        self.authors = ' and '.join(authors)
+        self.year = year
+        self.id = url.split('/')[-1]
+        self.category = category
+        # Generate BibTeX key
+        key_items = []
+        if len(authors) != 0:
+            key_items.append(authors[0].split(' ')[-1].lower())
+        if year != '':
+            key_items.append(year)
+        key_items.append(f"{self.title.split(' ')[0]}".lower())
+        self.key = '_'.join(key_items)
+        self.doi = doi
+        self._bibtex = None
 
     def get_itemize(self, prefix):
-        pass
+        string = termcolor.colored(f"{prefix}{self.title} [arXiv]", 'blue',
+                                   attrs=['bold'])
+        if self.authors != '':
+            string += f"\n{' '*len(prefix)}{self.authors}"
+        if (self.id != '' and self.category != '') or self.doi is not None:
+            string += f"\n{' '*len(prefix)}"
+            string += f"{self.id} [{self.category}]"
+            if self.doi is not None:
+                string += f", {self.doi}"
+        return string
 
     def get_bibtex(self, force_update=False):
-        pass
+        if self.doi is None:
+            string = f'@misc{{{self.key},'
+            string += f'\n      title={{{self.title}}},'
+            if self.authors != '':
+                string += f'\n      author={{{self.authors}}},'
+            if self.year != '':
+                string += f'\n      year={{{self.year}}},'
+            if self.id != '':
+                string += f'\n      eprint={{{self.id}}},'
+            string += '\n      archivePrefix={{arXiv}},'
+            if self.category != '':
+                string += f'\n      primaryClass={{{self.category}}},'
+            string += '\n}'
+            self._bibtex = string
+        elif (self._bibtex is None) or force_update:
+            if self.doi != '':
+                self._bibtex = habanero.cn.content_negotiation(
+                    ids=self.doi, format='bibentry')
+            else:
+                self._bibtex = None
+                # TODO Use logger here
+                print('No DOI, could not fetch bibtex')
+        return self._bibtex
 
 
 def main():
@@ -125,8 +171,9 @@ def main():
     query = construct_query_from_pdf(args.file, conf)
 
     # Send Query
-    results = query_crossref(query, conf)
-    # res = arxiv.query(query=query, max_results=20)
+    results_crossref = query_crossref(query, conf)
+    results_arxiv = query_arxiv(query, conf)
+    results = results_crossref + results_arxiv
 
     if len(results) == 0:
         # TODO use logger
@@ -141,7 +188,7 @@ def main():
 
     # Select a result
     selected_result = _prompt_result_selection(
-        conf.getint('config', 'max_query_results'))
+        2 * conf.getint('config', 'max_query_results'))
     bib_entry = results[selected_result].get_bibtex()
 
     # Print selected entry
@@ -229,17 +276,31 @@ def query_crossref(query, conf):
         doi = result['message']['items'][i].get('DOI', '')
         pub = result['message']['items'][i].get('publisher', '')
         # Format author names
-        author_name_list = []
+        author_names = []
         for entry in authors:
-            author_name_list.append(entry['given'] + ' ' + entry['family'])
-        author_names = ' and '.join(author_name_list)
+            author_names.append(entry['given'] + ' ' + entry['family'])
         # Create CrossrefResult object
         results.append(CrossrefResult(title, author_names, pub, doi))
     return results
 
 
-def query_arxiv():
-    pass
+def query_arxiv(query, conf):
+    result = arxiv.query(
+        query=query, max_results=conf.getint('config', 'max_query_results'))
+    if len(result) == 0:
+        # Logging here
+        print('No results from arXiv')
+        return []
+    results = []
+    for i in range(conf.getint('config', 'max_query_results')):
+        title = re.sub(r'\s+', ' ', result[i]['title'])
+        authors = result[i]['authors']
+        year = str(result[i]['published_parsed'].tm_year)
+        url = result[i]['id']
+        category = result[i]['arxiv_primary_category']['term']
+        doi = result[i]['doi']
+        results.append(ArxivResult(title, authors, year, url, category, doi))
+    return results
 
 
 def _print_section(text):
@@ -247,6 +308,7 @@ def _print_section(text):
 
 
 def _prompt_result_selection(max_query_results):
+    # TODO Add extra commands to exit, view, open
     while True:
         try:
             selected_result = int(input(termcolor.colored('Select a result: ',
