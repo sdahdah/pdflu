@@ -12,6 +12,7 @@ import pdfminer.layout
 import termcolor
 import pyperclip
 import arxiv
+import signal
 
 
 class CrossrefResult():
@@ -23,8 +24,8 @@ class CrossrefResult():
         self._bibtex = None
 
     def get_itemize(self, prefix):
-        string = termcolor.colored(f"{prefix}{self.title} [Crossref]", 'red',
-                                   attrs=['bold'])
+        string = termcolor.colored(f"{prefix}{self.title} [Crossref]",
+                                   'yellow', attrs=['bold'])
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
         third_line = []
@@ -67,7 +68,7 @@ class ArxivResult():
         self._bibtex = None
 
     def get_itemize(self, prefix):
-        string = termcolor.colored(f"{prefix}{self.title} [arXiv]", 'blue',
+        string = termcolor.colored(f"{prefix}{self.title} [arXiv]", 'red',
                                    attrs=['bold'])
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
@@ -106,7 +107,13 @@ class ArxivResult():
         return self._bibtex
 
 
+def signal_handler(sig, frame):
+    print('\nInterrupt signal received\n')
+    sys.exit(0)
+
+
 def main():
+    signal.signal(signal.SIGINT, signal_handler)
 
     # Figure out config path using environment variables
     if os.name == 'posix':
@@ -201,7 +208,7 @@ def main():
         return
 
     # Print results
-    _print_section('Query results:')
+    print(_header('Query results:'))
     for i, res in enumerate(results):
         print(res.get_itemize(f'{i+1}. '))
 
@@ -211,11 +218,11 @@ def main():
     bib_entry = results[selected_result].get_bibtex()
 
     # Print selected entry
-    _print_section('BibTeX entry:')
+    print(_header('BibTeX entry:'))
     print(bib_entry)
 
     # Copy entry to clipboard
-    _print_section('BibTeX entry copied to clipboard.')
+    print(_header('BibTeX entry copied to clipboard.'))
     pyperclip.copy(bib_entry)
 
 
@@ -278,8 +285,8 @@ def construct_query_from_pdf(file, conf):
 
 
 def query_crossref(query, conf):
-    _print_section('Querying Crossref with:')
-    print(f'`{query}`')
+    print(_header('Querying Crossref with:'))
+    print(f'"{query}"')
     crossref = habanero.Crossref()
     result = crossref.works(query_bibliographic=query,
                             limit=conf.getint('config', 'max_query_results'))
@@ -322,16 +329,16 @@ def query_arxiv(query, conf):
     return results
 
 
-def _print_section(text):
-    print(termcolor.colored(text, 'yellow'))
+def _header(string):
+    return (termcolor.colored('::', 'blue', attrs=['bold'])
+            + termcolor.colored(f' {string}', 'white', attrs=['bold']))
 
 
 def _prompt_result_selection(max_query_results):
     # TODO Add extra commands to exit, view, open
     while True:
         try:
-            selected_result = int(input(termcolor.colored('Select a result: ',
-                                                          'yellow'))) - 1
+            selected_result = int(input(_header('Select a result: '))) - 1
             if selected_result < 0:
                 raise ValueError
             if selected_result >= max_query_results:
