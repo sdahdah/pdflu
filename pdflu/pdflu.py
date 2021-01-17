@@ -173,7 +173,21 @@ def main():
     # Send Query
     results_crossref = query_crossref(query, conf)
     results_arxiv = query_arxiv(query, conf)
-    results = results_crossref + results_arxiv
+    results_combined = results_crossref + results_arxiv
+
+    # Sort by number of words from query in title
+    common_words = []
+    query_words = query.split(' ')
+    for res in results_combined:
+        count = 0
+        title_words = res.title.split(' ')
+        for word in query_words:
+            if word in title_words:
+                count += 1
+        common_words.append(count)
+    results = [res for _, res in sorted(zip(common_words, results_combined),
+                                        key=lambda pair: pair[0],
+                                        reverse=True)]
 
     if len(results) == 0:
         # TODO use logger
