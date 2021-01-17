@@ -304,7 +304,14 @@ def query_crossref(query, conf):
         # Format author names
         author_names = []
         for entry in authors:
-            author_names.append(entry['given'] + ' ' + entry['family'])
+            name_parts = []
+            given = entry.get('given', '')
+            family = entry.get('family', '')
+            if given != '':
+                name_parts.append(given)
+            if family != '':
+                name_parts.append(family)
+            author_names.append(' '.join(name_parts))
         # Create CrossrefResult object
         results.append(CrossrefResult(title, author_names, pub, doi))
     return results
