@@ -15,100 +15,6 @@ import arxiv
 import signal
 
 
-class CrossrefResult():
-    def __init__(self, title, authors, publisher, doi):
-        self.title = title
-        self.authors = ' and '.join(authors)
-        self.publisher = publisher
-        self.doi = doi
-        self._bibtex = None
-
-    def get_itemize(self, prefix):
-        string = (termcolor.colored(f"{prefix}{self.title} ",
-                                    'white', attrs=['bold'])
-                  + termcolor.colored('[Crossref]', 'yellow', attrs=['bold']))
-        if self.authors != '':
-            string += f"\n{' '*len(prefix)}{self.authors}"
-        third_line = []
-        if self.publisher != '':
-            third_line.append(self.publisher)
-        if self.doi != '':
-            third_line.append(self.doi)
-        if len(third_line) != 0:
-            string += f"\n{' '*len(prefix)}{', '.join(third_line)}"
-        return string
-
-    def get_bibtex(self, force_update=False):
-        if (self._bibtex is None) or force_update:
-            if self.doi != '':
-                self._bibtex = habanero.cn.content_negotiation(
-                    ids=self.doi, format='bibentry')
-            else:
-                self._bibtex = None
-                # TODO Use logger here
-                print('No DOI, could not fetch bibtex')
-        return self._bibtex
-
-
-class ArxivResult():
-    def __init__(self, title, authors, year, url, category, doi):
-        self.title = title
-        self.authors = ' and '.join(authors)
-        self.year = year
-        self.id = url.split('/')[-1]
-        self.category = category
-        # Generate BibTeX key
-        key_items = []
-        if len(authors) != 0:
-            key_items.append(authors[0].split(' ')[-1].lower())
-        if year != '':
-            key_items.append(year)
-        key_items.append(f"{self.title.split(' ')[0]}".lower())
-        self.key = '_'.join(key_items)
-        self.doi = doi
-        self._bibtex = None
-
-    def get_itemize(self, prefix):
-        string = (termcolor.colored(f"{prefix}{self.title} ",
-                                    'white', attrs=['bold'])
-                  + termcolor.colored('[arXiv]', 'red', attrs=['bold']))
-        if self.authors != '':
-            string += f"\n{' '*len(prefix)}{self.authors}"
-        third_line = []
-        if (self.id != '' and self.category != ''):
-            third_line.append(f"{self.id} [{self.category}]")
-        if self.doi is not None:
-            third_line.append(self.doi)
-        if len(third_line) != 0:
-            string += f"\n{' '*len(prefix)}{', '.join(third_line)}"
-        return string
-
-    def get_bibtex(self, force_update=False):
-        if self.doi is None:
-            string = f'@misc{{{self.key},'
-            string += f'\n      title={{{self.title}}},'
-            if self.authors != '':
-                string += f'\n      author={{{self.authors}}},'
-            if self.year != '':
-                string += f'\n      year={{{self.year}}},'
-            if self.id != '':
-                string += f'\n      eprint={{{self.id}}},'
-            string += '\n      archivePrefix={{arXiv}},'
-            if self.category != '':
-                string += f'\n      primaryClass={{{self.category}}},'
-            string += '\n}'
-            self._bibtex = string
-        elif (self._bibtex is None) or force_update:
-            if self.doi != '':
-                self._bibtex = habanero.cn.content_negotiation(
-                    ids=self.doi, format='bibentry')
-            else:
-                self._bibtex = None
-                # TODO Use logger here
-                print('No DOI, could not fetch bibtex')
-        return self._bibtex
-
-
 def signal_handler(sig, frame):
     print('\nInterrupt signal received\n')
     sys.exit(0)
@@ -232,8 +138,103 @@ def main():
     print(bib_entry)
 
     # Copy entry to clipboard
-    print(_header('BibTeX entry copied to clipboard.'))
-    pyperclip.copy(bib_entry)
+    if conf.getboolean('pdflu', 'use_clipboard'):
+        print(_header('Copying BibTeX entry to clipboard...'))
+        pyperclip.copy(bib_entry)
+
+
+class CrossrefResult():
+    def __init__(self, title, authors, publisher, doi):
+        self.title = title
+        self.authors = ' and '.join(authors)
+        self.publisher = publisher
+        self.doi = doi
+        self._bibtex = None
+
+    def get_itemize(self, prefix):
+        string = (termcolor.colored(f"{prefix}{self.title} ",
+                                    'white', attrs=['bold'])
+                  + termcolor.colored('[Crossref]', 'yellow', attrs=['bold']))
+        if self.authors != '':
+            string += f"\n{' '*len(prefix)}{self.authors}"
+        third_line = []
+        if self.publisher != '':
+            third_line.append(self.publisher)
+        if self.doi != '':
+            third_line.append(self.doi)
+        if len(third_line) != 0:
+            string += f"\n{' '*len(prefix)}{', '.join(third_line)}"
+        return string
+
+    def get_bibtex(self, force_update=False):
+        if (self._bibtex is None) or force_update:
+            if self.doi != '':
+                self._bibtex = habanero.cn.content_negotiation(
+                    ids=self.doi, format='bibentry')
+            else:
+                self._bibtex = None
+                # TODO Use logger here
+                print('No DOI, could not fetch bibtex')
+        return self._bibtex
+
+
+class ArxivResult():
+    def __init__(self, title, authors, year, url, category, doi):
+        self.title = title
+        self.authors = ' and '.join(authors)
+        self.year = year
+        self.id = url.split('/')[-1]
+        self.category = category
+        # Generate BibTeX key
+        key_items = []
+        if len(authors) != 0:
+            key_items.append(authors[0].split(' ')[-1].lower())
+        if year != '':
+            key_items.append(year)
+        key_items.append(f"{self.title.split(' ')[0]}".lower())
+        self.key = '_'.join(key_items)
+        self.doi = doi
+        self._bibtex = None
+
+    def get_itemize(self, prefix):
+        string = (termcolor.colored(f"{prefix}{self.title} ",
+                                    'white', attrs=['bold'])
+                  + termcolor.colored('[arXiv]', 'red', attrs=['bold']))
+        if self.authors != '':
+            string += f"\n{' '*len(prefix)}{self.authors}"
+        third_line = []
+        if (self.id != '' and self.category != ''):
+            third_line.append(f"{self.id} [{self.category}]")
+        if self.doi is not None:
+            third_line.append(self.doi)
+        if len(third_line) != 0:
+            string += f"\n{' '*len(prefix)}{', '.join(third_line)}"
+        return string
+
+    def get_bibtex(self, force_update=False):
+        if self.doi is None:
+            string = f'@misc{{{self.key},'
+            string += f'\n    title={{{self.title}}},'
+            if self.authors != '':
+                string += f'\n    author={{{self.authors}}},'
+            if self.year != '':
+                string += f'\n    year={{{self.year}}},'
+            if self.id != '':
+                string += f'\n    eprint={{{self.id}}},'
+            string += '\n    archivePrefix={{arXiv}},'
+            if self.category != '':
+                string += f'\n    primaryClass={{{self.category}}},'
+            string += '\n}'
+            self._bibtex = string
+        elif (self._bibtex is None) or force_update:
+            if self.doi != '':
+                self._bibtex = habanero.cn.content_negotiation(
+                    ids=self.doi, format='bibentry')
+            else:
+                self._bibtex = None
+                # TODO Use logger here
+                print('No DOI, could not fetch bibtex')
+        return self._bibtex
 
 
 def construct_query_from_pdf(file, conf):

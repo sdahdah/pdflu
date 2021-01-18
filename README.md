@@ -3,7 +3,7 @@ Command line tool to find BibTeX for academic papers using Crossref
 
 ## Sample config
 
-```ini
+```cfg
 [pdflu]
 # Number of pages to parse in a PDF
 max_pages = 2
@@ -26,6 +26,8 @@ disp_query_results = 5
 # gives better performance. For more info, see
 # https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service
 polite_pool_email = you@email.com
+# If true, copies final result to clipboard
+use_clipboard = false
 ```
 
 ## TODO
@@ -38,3 +40,4 @@ polite_pool_email = you@email.com
 - [ ] Add colour choices in config
 - [ ] Add documentation in code
 - [ ] PyPI
+- [ ] Replace tabs with spaces
