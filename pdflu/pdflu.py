@@ -180,16 +180,16 @@ def main():
         sys.exit(1)
 
     # Build a query from a PDF file
+    print(_header('Parsing PDF...'))
     query = construct_query_from_pdf(args.file, conf)
 
     # Send Query
-    print(_header('Querying Crossref and arXiv with:'))
-    print(f'"{query}"')
+    print(_header('Querying Crossref and arXiv with:') + f' "{query}"')
     results_crossref = query_crossref(query, conf)
     results_arxiv = query_arxiv(query, conf)
     results_combined = results_crossref + results_arxiv
 
-    # Sort by number of words from query in title
+    # Find number of words from query in title
     common_words = []
     query_words = query.split(' ')
     for res in results_combined:
@@ -199,9 +199,13 @@ def main():
             if word in title_words:
                 count += 1
         common_words.append(count)
-    results = [res for _, res in sorted(zip(common_words, results_combined),
-                                        key=lambda pair: pair[0],
-                                        reverse=True)]
+    # Sort by number of words from query in title
+    results_sorted = [res for _, res in sorted(
+        zip(common_words, results_combined),
+        key=lambda pair: pair[0],
+        reverse=True)]
+    # Truncate sorted results list
+    results = results_sorted[:conf.getint('pdflu', 'disp_query_results')]
 
     if len(results) == 0:
         # TODO use logger
@@ -216,7 +220,7 @@ def main():
 
     # Select a result
     selected_result = _prompt_result_selection(
-        2 * conf.getint('config', 'max_query_results'))
+        conf.getint('pdflu', 'disp_query_results'))
     bib_entry = results[selected_result].get_bibtex()
 
     # Print selected entry
@@ -233,12 +237,12 @@ def construct_query_from_pdf(file, conf):
     text_chunks = []
     text_sizes = []
     for page_layout in pdfminer.high_level.extract_pages(
-            file, maxpages=conf.getint('config', 'max_pages')):
+            file, maxpages=conf.getint('pdflu', 'max_pages')):
         for element in page_layout:
             if isinstance(element, pdfminer.layout.LTTextContainer):
                 text = element.get_text()
                 lines = text.count('\n')
-                if lines > conf.getint('config', 'max_text_lines'):
+                if lines > conf.getint('pdflu', 'max_text_lines'):
                     # If the element has too many lines, it's probably a
                     # paragraph from the main body. Skip it.
                     continue
@@ -256,9 +260,9 @@ def construct_query_from_pdf(file, conf):
                     # Count the number of words. Skip if there are too many
                     # or too few.
                     words = text_stripped.count(' ') + 1
-                    if words < conf.getint('config', 'min_text_words'):
+                    if words < conf.getint('pdflu', 'min_text_words'):
                         continue
-                    if words > conf.getint('config', 'max_text_words'):
+                    if words > conf.getint('pdflu', 'max_text_words'):
                         continue
                     # Find size of second character in the string.
                     # Skips the first in case there's a drop cap.
@@ -280,26 +284,26 @@ def construct_query_from_pdf(file, conf):
     query = ''
     for chunk, size in zip(text_chunks, text_sizes):
         if size >= threshold_size:
-            if len(query + ' ' + chunk) <= conf.getint('config',
+            if len(query + ' ' + chunk) <= conf.getint('pdflu',
                                                        'max_query_chars'):
                 query += (' ' + chunk)
     return query.strip()
 
 
 def query_crossref(query, conf):
-    polite_pool_email = conf['config'].get('polite_pool_email', None)
+    polite_pool_email = conf['pdflu'].get('polite_pool_email', None)
     if polite_pool_email is None:
         # TODO Add logging
         print('To gain access to the Crossref polite pool, add an email')
     crossref = habanero.Crossref(mailto=polite_pool_email)
     result = crossref.works(query_bibliographic=query,
-                            limit=conf.getint('config', 'max_query_results'))
+                            limit=conf.getint('pdflu', 'max_query_results'))
     if len(result['message']['items']) == 0:
         # Logging here
         print('No results from Crossref')
         return []
     results = []
-    for i in range(conf.getint('config', 'max_query_results')):
+    for i in range(conf.getint('pdflu', 'max_query_results')):
         # Get metadata
         title = result['message']['items'][i].get('title', [''])[0]
         authors = result['message']['items'][i].get('author', '')
@@ -323,13 +327,13 @@ def query_crossref(query, conf):
 
 def query_arxiv(query, conf):
     result = arxiv.query(
-        query=query, max_results=conf.getint('config', 'max_query_results'))
+        query=query, max_results=conf.getint('pdflu', 'max_query_results'))
     if len(result) == 0:
         # Logging here
         print('No results from arXiv')
         return []
     results = []
-    for i in range(conf.getint('config', 'max_query_results')):
+    for i in range(conf.getint('pdflu', 'max_query_results')):
         title = re.sub(r'\s+', ' ', result[i]['title'])
         authors = result[i]['authors']
         year = str(result[i]['published_parsed'].tm_year)
