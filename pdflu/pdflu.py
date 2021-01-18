@@ -24,8 +24,9 @@ class CrossrefResult():
         self._bibtex = None
 
     def get_itemize(self, prefix):
-        string = termcolor.colored(f"{prefix}{self.title} [Crossref]",
-                                   'yellow', attrs=['bold'])
+        string = (termcolor.colored(f"{prefix}{self.title} ",
+                                    'white', attrs=['bold'])
+                  + termcolor.colored('[Crossref]', 'yellow', attrs=['bold']))
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
         third_line = []
@@ -68,8 +69,9 @@ class ArxivResult():
         self._bibtex = None
 
     def get_itemize(self, prefix):
-        string = termcolor.colored(f"{prefix}{self.title} [arXiv]", 'red',
-                                   attrs=['bold'])
+        string = (termcolor.colored(f"{prefix}{self.title} ",
+                                    'white', attrs=['bold'])
+                  + termcolor.colored('[arXiv]', 'red', attrs=['bold']))
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
         third_line = []

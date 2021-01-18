@@ -27,3 +27,14 @@ disp_query_results = 5
 # https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service
 polite_pool_email = you@email.com
 ```
+
+## TODO
+
+- [ ] Add manual query
+- [ ] Add autoselect output
+- [ ] Add library mode for bibmgr
+- [ ] Add "show more" prompt
+- [ ] Add default config
+- [ ] Add colour choices in config
+- [ ] Add documentation in code
+- [ ] PyPI
