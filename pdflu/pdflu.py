@@ -183,6 +183,8 @@ def main():
     query = construct_query_from_pdf(args.file, conf)
 
     # Send Query
+    print(_header('Querying Crossref and arXiv with:'))
+    print(f'"{query}"')
     results_crossref = query_crossref(query, conf)
     results_arxiv = query_arxiv(query, conf)
     results_combined = results_crossref + results_arxiv
@@ -285,9 +287,11 @@ def construct_query_from_pdf(file, conf):
 
 
 def query_crossref(query, conf):
-    print(_header('Querying Crossref with:'))
-    print(f'"{query}"')
-    crossref = habanero.Crossref()
+    polite_pool_email = conf['config'].get('polite_pool_email', None)
+    if polite_pool_email is None:
+        # TODO Add logging
+        print('To gain access to the Crossref polite pool, add an email')
+    crossref = habanero.Crossref(mailto=polite_pool_email)
     result = crossref.works(query_bibliographic=query,
                             limit=conf.getint('config', 'max_query_results'))
     if len(result['message']['items']) == 0:
