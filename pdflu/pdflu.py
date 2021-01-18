@@ -121,22 +121,63 @@ def main():
         # TODO System exit?
         return
 
-    # Print results
-    max_chars = len(conf['pdflu']['disp_query_results'])
-    print(_header('Query results:'))
-    for i, res in enumerate(results):
-        num_chars = len(str(i + 1))
-        print(res.get_itemize(f"{' ' * (max_chars - num_chars)}{i + 1}. "))
+    print(_header('Best query result:'))
+    print(results[0].get_itemize('  - '))
+    valid_responses = ['', 'y', 'n', '?', 'q']
+    while True:
+        response = _prompt('Accept? [Y/n/?/q] ', valid_responses)
+        if response in ['', 'y']:
+            selected_result = 0
+            break
+        elif response == '?':
+            print('  y  yes  (default)')
+            print('  n  no')
+            print('  ?  help')
+            print('  q  quit')
+        elif response == 'q':
+            # TODO sys sxit
+            exit()
+        else:
+            # Print results
+            max_chars = len(conf['pdflu']['disp_query_results'])
+            print(_header('All query results:'))
+            for i, res in enumerate(results):
+                num_chars = len(str(i + 1))
+                print(res.get_itemize(
+                    f"  {' ' * (max_chars - num_chars)}{i + 1}. "))
 
-    # Select a result
-    selected_result = _prompt_result_selection(
-        conf.getint('pdflu', 'disp_query_results'))
+            # Select a result
+            last_result = conf.getint('pdflu', 'disp_query_results')
+            valid_responses = ([str(i) for i in range(1, last_result+1)]
+                               + ['', 's', '?', 'q'])
+            while True:
+                response = _prompt(
+                    f'Select a result: [1-{last_result}/s/?/q] ',
+                    valid_responses)
+                if response == '':
+                    selected_result = 0
+                    break
+                elif response == 's':
+                    lines = conf.getint('pdflu', 'show_first_lines')
+                    text = '  ' + '\n  '.join(pdfminer.high_level.extract_text(
+                        args.file, maxpages=1).split('\n')[:lines])
+                    print(text)
+                elif response == '?':
+                    numbers = f'1-{last_result}'
+                    padding = len(numbers) - 1
+                    print(f"  {numbers}  entry to select (default: 1)")
+                    print(f"{' '*padding}  s  show first lines of PDF")
+                    print(f"{' '*padding}  ?  help")
+                    print(f"{' '*padding}  q  quit")
+                elif response == 'q':
+                    # TODO sys exit
+                    exit()
+                else:
+                    selected_result = int(response) - 1
+                    break
+            break
+
     bib_entry = results[selected_result].get_bibtex()
-
-    # print(_header('First page:'))
-    # text = '\n'.join(pdfminer.high_level.extract_text(
-    #     args.file, maxpages=1).split('\n')[:10])
-    # print(text)
 
     # Print selected entry
     print(_header('BibTeX entry:'))
@@ -157,8 +198,8 @@ class CrossrefResult():
         self._bibtex = None
 
     def get_itemize(self, prefix):
-        string = (termcolor.colored(f"{prefix}{self.title} ",
-                                    'white', attrs=['bold'])
+        string = (termcolor.colored(f'{prefix}{self.title} ',
+                                    'yellow', attrs=['bold'])
                   + termcolor.colored('[Crossref]', 'yellow', attrs=['bold']))
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
@@ -203,8 +244,8 @@ class ArxivResult():
         self._bibtex = None
 
     def get_itemize(self, prefix):
-        string = (termcolor.colored(f"{prefix}{self.title} ",
-                                    'white', attrs=['bold'])
+        string = (termcolor.colored(f'{prefix}{self.title} ',
+                                    'red', attrs=['bold'])
                   + termcolor.colored('[arXiv]', 'red', attrs=['bold']))
         if self.authors != '':
             string += f"\n{' '*len(prefix)}{self.authors}"
@@ -361,17 +402,8 @@ def _header(string):
             + termcolor.colored(f' {string}', 'white', attrs=['bold']))
 
 
-def _prompt_result_selection(max_query_results):
-    # TODO Add extra commands to exit, view, open
+def _prompt(prompt, valid_responses):
     while True:
-        try:
-            selected_result = int(input(_header('Select a result: '))) - 1
-            if selected_result < 0:
-                raise ValueError
-            if selected_result >= max_query_results:
-                raise ValueError
-        except ValueError:
-            continue
-        else:
-            break
-    return selected_result
+        response = input(_header(prompt))
+        if response.lower() in valid_responses:
+            return response.lower()

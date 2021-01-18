@@ -28,15 +28,17 @@ disp_query_results = 5
 polite_pool_email = you@email.com
 # If true, copies final result to clipboard
 use_clipboard = false
+# Number of lines of PDF to show (using `s` command in prompt)
+show_first_lines = 10
 ```
 
 ## To do
 
 - [x] Replace tabs with spaces
+- [x] Add "show more" prompt
 - [ ] Add manual query
 - [ ] Add autoselect output
 - [ ] Add library mode for bibmgr
-- [ ] Add "show more" prompt
 - [ ] Add default config
 - [ ] Add colour choices in config
 - [ ] Add documentation in code
