@@ -214,9 +214,11 @@ def main():
         return
 
     # Print results
+    max_chars = len(conf['pdflu']['disp_query_results'])
     print(_header('Query results:'))
     for i, res in enumerate(results):
-        print(res.get_itemize(f'{i+1}. '))
+        num_chars = len(str(i + 1))
+        print(res.get_itemize(f"{' ' * (max_chars - num_chars)}{i + 1}. "))
 
     # Select a result
     selected_result = _prompt_result_selection(
