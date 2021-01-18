@@ -7,7 +7,7 @@ setuptools.setup(
     name='pdflu',
     version='0.1.0',
     description='Command line tool to find BibTeX for academic papers using '
-                'Crossref',
+                'Crossref and arXiv.',
     long_description=readme,
     author='Steven Dahdah',
     url='https://github.com/sdahdah/pdflu',
