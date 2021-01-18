@@ -92,7 +92,8 @@ def main():
     query = construct_query_from_pdf(args.file, conf)
 
     # Send Query
-    print(_header('Querying Crossref and arXiv with:') + f' "{query}"')
+    print(_header('Querying Crossref and arXiv with:'))
+    print(f'  "{query}"')
     results_crossref = query_crossref(query, conf)
     results_arxiv = query_arxiv(query, conf)
     results_combined = results_crossref + results_arxiv
