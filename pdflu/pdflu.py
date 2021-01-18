@@ -13,6 +13,7 @@ import termcolor
 import pyperclip
 import arxiv
 import signal
+import subprocess
 
 
 def signal_handler(sig, frame):
@@ -150,10 +151,10 @@ def main():
             # Select a result
             last_result = conf.getint('pdflu', 'disp_query_results')
             valid_responses = ([str(i) for i in range(1, last_result+1)]
-                               + ['', 's', '?', 'q'])
+                               + ['', 's', 'o', '?', 'q'])
             while True:
                 response = _prompt(
-                    f'Select a result: [1-{last_result}/s/?/q] ',
+                    f'Select a result: [1-{last_result}/s/o/?/q] ',
                     valid_responses)
                 if response == '':
                     selected_result = 0
@@ -163,11 +164,18 @@ def main():
                     text = '  ' + '\n  '.join(pdfminer.high_level.extract_text(
                         args.file, maxpages=1).split('\n')[:lines])
                     print(text)
+                elif response == 'o':
+                    if os.name == 'posix':
+                        subprocess.call(["xdg-open", args.file])
+                    else:
+                        # TODO Log error
+                        print('Not supported on Windows')
                 elif response == '?':
                     numbers = f'1-{last_result}'
                     padding = len(numbers) - 1
                     print(f"  {numbers}  entry to select (default: 1)")
                     print(f"{' '*padding}  s  show first lines of PDF")
+                    print(f"{' '*padding}  o  open PDF (Linux only)")
                     print(f"{' '*padding}  ?  help")
                     print(f"{' '*padding}  q  quit")
                 elif response == 'q':

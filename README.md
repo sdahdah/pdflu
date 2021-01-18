@@ -36,6 +36,9 @@ show_first_lines = 10
 
 - [x] Replace tabs with spaces
 - [x] Add "show more" prompt
+- [x] Open PDF
+- [ ] Add override for `xdg-open`
+- [ ] Clean up debug printing and logging
 - [ ] Add manual query
 - [ ] Add autoselect output
 - [ ] Add library mode for bibmgr
