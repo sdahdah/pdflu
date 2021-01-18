@@ -133,6 +133,11 @@ def main():
         conf.getint('pdflu', 'disp_query_results'))
     bib_entry = results[selected_result].get_bibtex()
 
+    # print(_header('First page:'))
+    # text = '\n'.join(pdfminer.high_level.extract_text(
+    #     args.file, maxpages=1).split('\n')[:10])
+    # print(text)
+
     # Print selected entry
     print(_header('BibTeX entry:'))
     print(bib_entry)
