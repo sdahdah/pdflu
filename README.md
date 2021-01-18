@@ -32,6 +32,7 @@ use_clipboard = false
 
 ## To do
 
+- [x] Replace tabs with spaces
 - [ ] Add manual query
 - [ ] Add autoselect output
 - [ ] Add library mode for bibmgr
@@ -40,4 +41,3 @@ use_clipboard = false
 - [ ] Add colour choices in config
 - [ ] Add documentation in code
 - [ ] PyPI
-- [ ] Replace tabs with spaces

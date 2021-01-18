@@ -169,8 +169,9 @@ class CrossrefResult():
     def get_bibtex(self, force_update=False):
         if (self._bibtex is None) or force_update:
             if self.doi != '':
-                self._bibtex = habanero.cn.content_negotiation(
-                    ids=self.doi, format='bibentry')
+                result = habanero.cn.content_negotiation(ids=self.doi,
+                                                         format='bibentry')
+                self._bibtex = re.sub(r'\t', '    ', result)
             else:
                 self._bibtex = None
                 # TODO Use logger here
@@ -220,16 +221,17 @@ class ArxivResult():
             if self.year != '':
                 string += f'\n    year={{{self.year}}},'
             if self.id != '':
-                string += f'\n    eprint={{{self.id}}},'
+                string += f'\n    eprint={{{{{self.id}}}}},'
             string += '\n    archivePrefix={{arXiv}},'
             if self.category != '':
-                string += f'\n    primaryClass={{{self.category}}},'
+                string += f'\n    primaryClass={{{{{self.category}}}}},'
             string += '\n}'
             self._bibtex = string
         elif (self._bibtex is None) or force_update:
             if self.doi != '':
-                self._bibtex = habanero.cn.content_negotiation(
-                    ids=self.doi, format='bibentry')
+                result = habanero.cn.content_negotiation(ids=self.doi,
+                                                         format='bibentry')
+                self._bibtex = re.sub(r'\t', '    ', result)
             else:
                 self._bibtex = None
                 # TODO Use logger here
