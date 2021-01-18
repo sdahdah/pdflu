@@ -3,7 +3,7 @@ Command line tool to find BibTeX for academic papers using Crossref
 
 ## Sample config
 
-```
+```ini
 [pdflu]
 # Number of pages to parse in a PDF
 max_pages = 2
