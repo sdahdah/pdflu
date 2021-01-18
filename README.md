@@ -30,7 +30,7 @@ polite_pool_email = you@email.com
 use_clipboard = false
 ```
 
-## TODO
+## To do
 
 - [ ] Add manual query
 - [ ] Add autoselect output
