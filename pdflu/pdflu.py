@@ -17,14 +17,19 @@ import subprocess
 
 
 def signal_handler(sig, frame):
+    """Signal handler to catch ^C nicely."""
     print('\nInterrupt signal received\n')
     sys.exit(0)
 
 
 def main():
+    """Main entry point."""
+
+    # Register signal handler
     signal.signal(signal.SIGINT, signal_handler)
 
-    # Figure out config path using environment variables
+    # Figure out config path using environment variables.
+    # Respects the XDG Base Directory specification on Linux.
     if os.name == 'posix':
         xdg_config_home_raw = os.environ.get('XDG_CONFIG_HOME')
         if xdg_config_home_raw is None:
