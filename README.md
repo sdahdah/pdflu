@@ -49,4 +49,3 @@ show_first_lines = 10
 - [ ] Add colour choices in config
 - [ ] Add documentation in code
 - [ ] PyPI
-- [ ] Mac config location? https://stackoverflow.com/questions/3373948/equivalents-of-xdg-config-home-and-xdg-data-home-on-mac-os-x

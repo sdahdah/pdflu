@@ -14,12 +14,13 @@ import pyperclip
 import arxiv
 import signal
 import subprocess
+import abc
 
 
 def signal_handler(sig, frame):
     """Signal handler to catch ^C nicely."""
     print('\nInterrupt signal received\n')
-    sys.exit(0)
+    sys.exit(130)
 
 
 def main():
@@ -123,10 +124,8 @@ def main():
     results = results_sorted[:conf.getint('pdflu', 'disp_query_results')]
 
     if len(results) == 0:
-        # TODO use logger
-        print('No results found')
-        # TODO System exit?
-        return
+        print(_header('No results found'))
+        sys.exit(0)
 
     print(_header('Best query result:'))
     print(results[0].get_itemize('  - '))
@@ -142,8 +141,7 @@ def main():
             print('  ?  help')
             print('  q  quit')
         elif response == 'q':
-            # TODO sys sxit
-            exit()
+            sys.exit(0)
         else:
             # Print results
             max_chars = len(conf['pdflu']['disp_query_results'])
@@ -173,8 +171,8 @@ def main():
                     if os.name == 'posix':
                         subprocess.call(["xdg-open", args.file])
                     else:
-                        # TODO Log error
-                        print('Not supported on Windows')
+                        logging.warning('Opening PDF not supported on '
+                                        'Windows.')
                 elif response == '?':
                     numbers = f'1-{last_result}'
                     padding = len(numbers) - 1
@@ -184,8 +182,7 @@ def main():
                     print(f"{' '*padding}  ?  help")
                     print(f"{' '*padding}  q  quit")
                 elif response == 'q':
-                    # TODO sys exit
-                    exit()
+                    sys.exit(0)
                 else:
                     selected_result = int(response) - 1
                     break
@@ -203,8 +200,74 @@ def main():
         pyperclip.copy(bib_entry)
 
 
-class CrossrefResult():
+class SearchResult(metaclass=abc.ABCMeta):
+    """Object to store a search result."""
+
+    @abc.abstractmethod
+    def get_itemize(self, prefix):
+        """Get a string that can be used when listing results.
+
+        For example, if the prefix is '- ', the result is:
+
+        - Title [Crossref/arXiv]
+          Authors
+          Publisher
+
+        Parameters
+        ----------
+        prefix : str
+            Prefix appended to beginning of first line. Usually a bullet point
+            or a number. Other lines have whitespace padded in front of them
+            to left-align the text.
+
+        Returns
+        -------
+        str
+            String used to represent result in a list.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def get_bibtex(self, force_update=False):
+        """Get the bibtex entry of a result.
+
+        For CrossrefResult objects, the BibTeX entry is fetched from the
+        Crossref API. For ArxivResult objects, the BibTeX entry is fetched
+        from the Crossref API if it has a DOI. Otherwise it is formatted
+        manually using metadata from arXiv.
+
+        Parameters
+        ----------
+        force_update : bool
+            Force method to fetch entry from Crossref (if DOI is present). If
+            False, result will only be fetched the first time this method is
+            called. Subsequent calls will return the saved entry.
+
+        Returns
+        -------
+        str
+            BibTeX entry.
+        """
+        raise NotImplementedError()
+
+
+class CrossrefResult(SearchResult):
+    """Object to store a search result from Crossref."""
+
     def __init__(self, title, authors, publisher, doi):
+        """Constructor for CrossrefResult object.
+
+        Parameters
+        ----------
+        title : str
+            Result title.
+        authors : list[str]
+            Result authors in format "First Middle von Last".
+        publisher : str
+            Result publisher.
+        doi : str
+            Result DOI.
+        """
         self.title = title
         self.authors = ' and '.join(authors)
         self.publisher = publisher
@@ -212,6 +275,7 @@ class CrossrefResult():
         self._bibtex = None
 
     def get_itemize(self, prefix):
+        """See SearchResult documentation."""
         string = (termcolor.colored(f'{prefix}{self.title} ',
                                     'yellow', attrs=['bold'])
                   + termcolor.colored('[Crossref]', 'yellow', attrs=['bold']))
@@ -227,6 +291,7 @@ class CrossrefResult():
         return string
 
     def get_bibtex(self, force_update=False):
+        """See SearchResult documentation."""
         if (self._bibtex is None) or force_update:
             if self.doi != '':
                 result = habanero.cn.content_negotiation(ids=self.doi,
@@ -234,13 +299,32 @@ class CrossrefResult():
                 self._bibtex = re.sub(r'\t', '    ', result)
             else:
                 self._bibtex = None
-                # TODO Use logger here
-                print('No DOI, could not fetch bibtex')
+                logging.warning('DOI empty for result `{self}`. Could not '
+                                'fetch BibTeX entry.')
         return self._bibtex
 
 
-class ArxivResult():
-    def __init__(self, title, authors, year, url, category, doi):
+class ArxivResult(SearchResult):
+    """Object to store a search result from arXiv."""
+
+    def __init__(self, title, authors, year, url, category, doi=None):
+        """Constructor for ArxivResult object.
+
+        Parameters
+        ----------
+        title : str
+            Result title.
+        authors : list[str]
+            Result authors in format "First Middle von Last".
+        year : str
+            Result publication year.
+        url : str
+            Result URL.
+        category :
+            Result primary category (e.g., "cs.SY")
+        doi : str
+            Result DOI if available.
+        """
         self.title = title
         self.authors = ' and '.join(authors)
         self.year = year
@@ -258,6 +342,7 @@ class ArxivResult():
         self._bibtex = None
 
     def get_itemize(self, prefix):
+        """See SearchResult documentation."""
         string = (termcolor.colored(f'{prefix}{self.title} ',
                                     'red', attrs=['bold'])
                   + termcolor.colored('[arXiv]', 'red', attrs=['bold']))
@@ -273,6 +358,7 @@ class ArxivResult():
         return string
 
     def get_bibtex(self, force_update=False):
+        """See SearchResult documentation."""
         if self.doi is None:
             string = f'@misc{{{self.key},'
             string += f'\n    title={{{self.title}}},'
@@ -294,12 +380,39 @@ class ArxivResult():
                 self._bibtex = re.sub(r'\t', '    ', result)
             else:
                 self._bibtex = None
-                # TODO Use logger here
-                print('No DOI, could not fetch bibtex')
+                logging.warning('DOI empty for result `{self}`. Could not '
+                                'fetch BibTeX entry.')
         return self._bibtex
 
 
 def construct_query_from_pdf(file, conf):
+    """Construct a search query from a PDF file.
+
+    Uses a few different heuristics to try to build a good query.
+
+    Rough summary:
+
+    1. Parses up to a set number of PDF pages.
+    2. Breaks the PDF into text boxes.
+    3. Strips away unwanted characters and whitespace.
+    4. Throws out text boxes that are too long or too short.
+    5. Throws out text boxes with small font sizes. Currently only picks the
+       ones with the largest font size.
+    6. Concatenates the text boxes to form a query.
+    7. Truncates the query.
+
+    Parameters
+    ----------
+    file : str
+        File name.
+    conf : configparser.ConfigParser
+        Parsed config file.
+
+    Returns
+    -------
+    str :
+        Search query.
+    """
     # Extract relevant text chunks and their font sizes
     text_chunks = []
     text_sizes = []
@@ -346,7 +459,8 @@ def construct_query_from_pdf(file, conf):
                             break
                     text_chunks.append(text_stripped)
                     text_sizes.append(char_size)
-    # Construct query
+    # Throw out text boxes with font size under the threshold. Build query.
+    # Threshold is current just the max size
     threshold_size = max(text_sizes)
     query = ''
     for chunk, size in zip(text_chunks, text_sizes):
@@ -360,8 +474,8 @@ def construct_query_from_pdf(file, conf):
 def query_crossref(query, conf):
     polite_pool_email = conf['pdflu'].get('polite_pool_email', None)
     if polite_pool_email is None:
-        # TODO Add logging
-        print('To gain access to the Crossref polite pool, add an email')
+        logging.warning('To gain access to the Crossref polite pool, add an '
+                        'email')
     crossref = habanero.Crossref(mailto=polite_pool_email)
     result = crossref.works(query_bibliographic=query,
                             limit=conf.getint('pdflu', 'max_query_results'))
