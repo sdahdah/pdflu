@@ -57,6 +57,8 @@ def main():
     parser.add_argument('-c', '--config', metavar='CONFIG', type=str,
                         dest='conf_path', default=default_conf_path,
                         help='path to configuration file (*.conf)')
+    parser.add_argument('-i', '--interactive', action='store_true',
+                        dest='interactive', help='use interactive mode')
     args = parser.parse_args()
 
     # Set logging level
@@ -95,12 +97,14 @@ def main():
         sys.exit(1)
 
     # Build a query from a PDF file
-    print(_header('Parsing PDF...'))
+    if args.interactive:
+        print(_header('Parsing PDF...'))
     query = construct_query_from_pdf(args.file, conf)
 
     # Send Query
-    print(_header('Querying Crossref and arXiv with:'))
-    print(f'  "{query}"')
+    if args.interactive:
+        print(_header('Querying Crossref and arXiv with:'))
+        print(f'  "{query}"')
     results_crossref = query_crossref(query, conf)
     results_arxiv = query_arxiv(query, conf)
     results_combined = results_crossref + results_arxiv
@@ -127,76 +131,82 @@ def main():
         print(_header('No results found'))
         sys.exit(0)
 
-    print(_header('Best query result:'))
-    print(results[0].get_itemize('  - '))
-    valid_responses = ['', 'y', 'n', '?', 'q']
-    while True:
-        response = _prompt('Accept? [Y/n/?/q] ', valid_responses)
-        if response in ['', 'y']:
-            selected_result = 0
-            break
-        elif response == '?':
-            print('  y  yes  (default)')
-            print('  n  no')
-            print('  ?  help')
-            print('  q  quit')
-        elif response == 'q':
-            sys.exit(0)
-        else:
-            # Print results
-            max_chars = len(conf['pdflu']['disp_query_results'])
-            print(_header('All query results:'))
-            for i, res in enumerate(results):
-                num_chars = len(str(i + 1))
-                print(res.get_itemize(
-                    f"  {' ' * (max_chars - num_chars)}{i + 1}. "))
+    if args.interactive:
+        print(_header('Best query result:'))
+        print(results[0].get_itemize('  - '))
+        valid_responses = ['', 'y', 'n', '?', 'q']
+        while True:
+            response = _prompt('Accept? [Y/n/?/q] ', valid_responses)
+            if response in ['', 'y']:
+                selected_result = 0
+                break
+            elif response == '?':
+                print('  y  yes  (default)')
+                print('  n  no')
+                print('  ?  help')
+                print('  q  quit')
+            elif response == 'q':
+                sys.exit(0)
+            else:
+                # Print results
+                max_chars = len(conf['pdflu']['disp_query_results'])
+                print(_header('All query results:'))
+                for i, res in enumerate(results):
+                    num_chars = len(str(i + 1))
+                    print(res.get_itemize(
+                        f"  {' ' * (max_chars - num_chars)}{i + 1}. "))
 
-            # Select a result
-            last_result = conf.getint('pdflu', 'disp_query_results')
-            valid_responses = ([str(i) for i in range(1, last_result+1)]
-                               + ['', 's', 'o', '?', 'q'])
-            while True:
-                response = _prompt(
-                    f'Select a result: [1-{last_result}/s/o/?/q] ',
-                    valid_responses)
-                if response == '':
-                    selected_result = 0
-                    break
-                elif response == 's':
-                    lines = conf.getint('pdflu', 'show_first_lines')
-                    text = '  ' + '\n  '.join(pdfminer.high_level.extract_text(
-                        args.file, maxpages=1).split('\n')[:lines])
-                    print(text)
-                elif response == 'o':
-                    if os.name == 'posix':
-                        subprocess.call(["xdg-open", args.file])
+                # Select a result
+                last_result = conf.getint('pdflu', 'disp_query_results')
+                valid_responses = ([str(i) for i in range(1, last_result+1)]
+                                   + ['', 's', 'o', '?', 'q'])
+                while True:
+                    response = _prompt(
+                        f'Select a result: [1-{last_result}/s/o/?/q] ',
+                        valid_responses)
+                    if response == '':
+                        selected_result = 0
+                        break
+                    elif response == 's':
+                        lines = conf.getint('pdflu', 'show_first_lines')
+                        raw_text = pdfminer.high_level.extract_text(
+                                args.file, maxpages=1)
+                        text = '  ' + '\n  '.join(raw_text.split('\n')[:lines])
+                        print(text)
+                    elif response == 'o':
+                        if os.name == 'posix':
+                            subprocess.call(["xdg-open", args.file])
+                        else:
+                            logging.warning('Opening PDF not supported on '
+                                            'Windows.')
+                    elif response == '?':
+                        numbers = f'1-{last_result}'
+                        padding = len(numbers) - 1
+                        print(f"  {numbers}  entry to select (default: 1)")
+                        print(f"{' '*padding}  s  show first lines of PDF")
+                        print(f"{' '*padding}  o  open PDF (Linux only)")
+                        print(f"{' '*padding}  ?  help")
+                        print(f"{' '*padding}  q  quit")
+                    elif response == 'q':
+                        sys.exit(0)
                     else:
-                        logging.warning('Opening PDF not supported on '
-                                        'Windows.')
-                elif response == '?':
-                    numbers = f'1-{last_result}'
-                    padding = len(numbers) - 1
-                    print(f"  {numbers}  entry to select (default: 1)")
-                    print(f"{' '*padding}  s  show first lines of PDF")
-                    print(f"{' '*padding}  o  open PDF (Linux only)")
-                    print(f"{' '*padding}  ?  help")
-                    print(f"{' '*padding}  q  quit")
-                elif response == 'q':
-                    sys.exit(0)
-                else:
-                    selected_result = int(response) - 1
-                    break
-            break
+                        selected_result = int(response) - 1
+                        break
+                break
+    else:
+        selected_result = 0
 
     bib_entry = results[selected_result].get_bibtex()
 
     # Print selected entry
-    print(_header('BibTeX entry:'))
+    if args.interactive:
+        print(_header('BibTeX entry:'))
     print(bib_entry)
 
     # Copy entry to clipboard
     if conf.getboolean('pdflu', 'use_clipboard'):
-        print(_header('Copying BibTeX entry to clipboard...'))
+        if args.interactive:
+            print(_header('Copying BibTeX entry to clipboard...'))
         pyperclip.copy(bib_entry)
 
 
