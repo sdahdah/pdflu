@@ -472,6 +472,23 @@ def construct_query_from_pdf(file, conf):
 
 
 def query_crossref(query, conf):
+    """Send Crossref a query and return a list of results.
+
+    Be sure to add an email to your config to be part of the Crossref polite
+    pool.
+
+    Parameters
+    ----------
+    query : str
+        Query string.
+    conf : configparser.ConfigParser
+        Parsed config file.
+
+    Returns
+    -------
+    list[CrossrefResult]
+        List of results.
+    """
     polite_pool_email = conf['pdflu'].get('polite_pool_email', None)
     if polite_pool_email is None:
         logging.warning('To gain access to the Crossref polite pool, add an '
@@ -507,6 +524,20 @@ def query_crossref(query, conf):
 
 
 def query_arxiv(query, conf):
+    """Send arXiv a query and return a list of results.
+
+    Parameters
+    ----------
+    query : str
+        Query string.
+    conf : configparser.ConfigParser
+        Parsed config file.
+
+    Returns
+    -------
+    list[ArxivResult]
+        List of results.
+    """
     result = arxiv.query(
         query=query, max_results=conf.getint('pdflu', 'max_query_results'))
     if len(result) == 0:
@@ -526,11 +557,39 @@ def query_arxiv(query, conf):
 
 
 def _header(string):
+    """Format a string as a header.
+
+    Style inspired by pacman.
+
+    Parameters
+    ----------
+    string : str
+        String to format
+
+    Returns
+    -------
+    str
+        String formatted as header
+    """
     return (termcolor.colored('::', 'blue', attrs=['bold'])
             + termcolor.colored(f' {string}', 'white', attrs=['bold']))
 
 
 def _prompt(prompt, valid_responses):
+    """Prompt the user for input. Loop until valid string is input.
+
+    Parameters
+    ----------
+    prompt : str
+        User prompt.
+    valid_responses : list[str]
+        Lowercase list of valid input strings.
+
+    Returns
+    -------
+    string
+        User's (valid) response.
+    """
     while True:
         response = input(_header(prompt))
         if response.lower() in valid_responses:
