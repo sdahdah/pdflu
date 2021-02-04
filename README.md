@@ -33,6 +33,26 @@ polite_pool_email = you@email.com
 use_clipboard = false
 # Number of lines of PDF to show (using `s` command in prompt)
 show_first_lines = 10
+# BibTeX style to use for arXiv entries without DOIs.
+#
+# If `article`, uses:
+# @article{key,
+#     title = {},
+#     author = {},
+#     year = {},
+#     journaltitle = {{\tt arXiv:0000.00000v0 [wx.YZ]}}
+# }
+#
+# If `misc`, uses:
+# @misc{key,
+#     title = {},
+#     author = {},
+#     year = {},
+#     eprint = {{0000.00000v0}},
+#     archivePrefix = {{arXiv}},
+#     primaryClass = {{wx.YZ}}
+# }
+arxiv_bibtex_style = article
 ```
 
 ## To do

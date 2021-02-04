@@ -318,8 +318,31 @@ class CrossrefResult(SearchResult):
 class ArxivResult(SearchResult):
     """Object to store a search result from arXiv."""
 
-    def __init__(self, title, authors, year, url, category, doi=None):
+    def __init__(self, title, authors, year, url, category, doi=None,
+                 bibtex_style='misc'):
         """Constructor for ArxivResult object.
+
+        Depending on the value of `bibtex_style`, the output format of
+        `get_bibtex()` will differ (if the entry has no DOI). If
+        `bibtex_style='article'`, the format is::
+
+            @article{key,
+                title = {},
+                author = {},
+                year = {},
+                journaltitle = {{\\tt arXiv:0000.00000v0 [wx.YZ]}}
+            }
+
+        If `bibtex_style='misc'`, the format is::
+
+            @misc{key,
+                title = {},
+                author = {},
+                year = {},
+                eprint = {{0000.00000v0}},
+                archivePrefix = {{arXiv}},
+                primaryClass = {{wx.YZ}}
+            }
 
         Parameters
         ----------
@@ -335,6 +358,9 @@ class ArxivResult(SearchResult):
             Result primary category (e.g., "cs.SY")
         doi : str
             Result DOI if available.
+        bibtex_style : str
+            If `article`, uses the article BibTeX style. If `misc`, uses the
+            misc BibTeX style. See above for details on styles.
         """
         self.title = title
         self.authors = ' and '.join(authors)
@@ -350,6 +376,7 @@ class ArxivResult(SearchResult):
         key_items.append(f"{self.title.split(' ')[0]}".lower())
         self.key = '_'.join(key_items)
         self.doi = doi
+        self.bibtex_style = bibtex_style
         self._bibtex = None
 
     def get_itemize(self, prefix):
@@ -371,17 +398,31 @@ class ArxivResult(SearchResult):
     def get_bibtex(self, force_update=False):
         """See SearchResult documentation."""
         if self.doi is None:
-            string = f'@misc{{{self.key},'
+            # Entry type for each style
+            if self.bibtex_style == 'article':
+                string = f'@article{{{self.key},'
+            else:
+                string = f'@misc{{{self.key},'
+            # Title, author, year are the same for both
             string += f'\n    title={{{self.title}}},'
             if self.authors != '':
                 string += f'\n    author={{{self.authors}}},'
             if self.year != '':
                 string += f'\n    year={{{self.year}}},'
-            if self.id != '':
-                string += f'\n    eprint={{{{{self.id}}}}},'
-            string += '\n    archivePrefix={{arXiv}},'
-            if self.category != '':
-                string += f'\n    primaryClass={{{{{self.category}}}}},'
+            # Eprint formatting for each style
+            if self.bibtex_style == 'article':
+                if self.id != '' and self.category != '':
+                    string += (f'\n    journaltitle={{{{\\tt arXiv:{self.id} '
+                               f'[{self.category}]}}}}')
+                elif self.id != '':
+                    string += (f'\n    journaltitle={{{{\\tt arXiv:{self.id}'
+                               '}}}}')
+            else:
+                if self.id != '':
+                    string += f'\n    eprint={{{{{self.id}}}}},'
+                string += '\n    archivePrefix={{arXiv}},'
+                if self.category != '':
+                    string += f'\n    primaryClass={{{{{self.category}}}}},'
             string += '\n}'
             self._bibtex = string
         elif (self._bibtex is None) or force_update:
@@ -563,7 +604,8 @@ def query_arxiv(query, conf):
         url = result[i]['id']
         category = result[i]['arxiv_primary_category']['term']
         doi = result[i]['doi']
-        results.append(ArxivResult(title, authors, year, url, category, doi))
+        results.append(ArxivResult(title, authors, year, url, category, doi,
+                                   conf['pdflu']['arxiv_bibtex_style']))
     return results
 
 
