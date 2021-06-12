@@ -612,7 +612,8 @@ def query_arxiv(query, conf):
         print('No results from arXiv')
         return []
     results = []
-    for i in range(conf.getint('pdflu', 'max_query_results')):
+    max_len = conf.getint('pdflu', 'max_query_results')
+    for i in range(min(len(result), max_len)):
         title = re.sub(r'\s+', ' ', result[i]['title'])
         authors = result[i]['authors']
         year = str(result[i]['published_parsed'].tm_year)
