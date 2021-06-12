@@ -48,8 +48,8 @@ def main():
     parser = argparse.ArgumentParser(
         description='Command line tool to find BibTeX for academic papers '
         'using Crossref.')
-    parser.add_argument('file', metavar='FILE', type=str,
-                        help='path to PDF file.')
+    parser.add_argument('file_or_query', metavar='FILE_OR_QUERY', type=str,
+                        help='path to PDF file, or query if `--query` is set')
     parser.add_argument('-v', '--verbose', action='store_true', dest='verbose',
                         help='show detailed output')
     parser.add_argument('--debug', action='store_true', dest='debug',
@@ -60,6 +60,8 @@ def main():
                         help='path to configuration file (*.conf)')
     parser.add_argument('-i', '--interactive', action='store_true',
                         dest='interactive', help='use interactive mode')
+    parser.add_argument('-q', '--query', action='store_true',
+                        dest='query', help='manually query arXiv and Crossref')
     args = parser.parse_args()
 
     # Set logging level
@@ -88,19 +90,24 @@ def main():
         conf.read(args.conf_path)
 
     # Validate file input
-    file_path = pathlib.Path(args.file)
-    if not file_path.exists():
-        logging.critical(f'Specified config file `{args.file}` does not '
-                         'exist.')
-        sys.exit(1)
-    if not file_path.is_file():
-        logging.critical(f'Specified config file `{args.file}` is not a file.')
-        sys.exit(1)
+    if not args.query:
+        file_path = pathlib.Path(args.file_or_query)
+        if not file_path.exists():
+            logging.critical(f'Specified config file `{args.file_or_query}` '
+                             'does not exist.')
+            sys.exit(1)
+        if not file_path.is_file():
+            logging.critical(f'Specified config file `{args.file_or_query}` '
+                             'is not a file.')
+            sys.exit(1)
 
     # Build a query from a PDF file
-    if args.interactive:
-        print(_header('Parsing PDF...'))
-    query = construct_query_from_pdf(args.file, conf)
+    if args.query:
+        query = args.file_or_query
+    else:
+        if args.interactive:
+            print(_header('Parsing PDF...'))
+        query = construct_query_from_pdf(args.file_or_query, conf)
 
     # Send Query
     if args.interactive:
@@ -169,17 +176,25 @@ def main():
                         selected_result = 0
                         break
                     elif response == 's':
-                        lines = conf.getint('pdflu', 'show_first_lines')
-                        raw_text = pdfminer.high_level.extract_text(
-                                args.file, maxpages=1)
-                        text = '  ' + '\n  '.join(raw_text.split('\n')[:lines])
-                        print(text)
-                    elif response == 'o':
-                        if os.name == 'posix':
-                            subprocess.call(["xdg-open", args.file])
+                        if not args.query:
+                            lines = conf.getint('pdflu', 'show_first_lines')
+                            raw_text = pdfminer.high_level.extract_text(
+                                    args.file_or_query, maxpages=1)
+                            split_text = raw_text.split('\n')[:lines]
+                            text = '  ' + '\n  '.join(split_text)
+                            print(text)
                         else:
-                            logging.warning('Opening PDF not supported on '
-                                            'Windows.')
+                            print('Not supported with `--query` set.')
+                    elif response == 'o':
+                        if not args.query:
+                            if os.name == 'posix':
+                                subprocess.call(["xdg-open",
+                                                 args.file_or_query])
+                            else:
+                                logging.warning('Opening PDF not supported on '
+                                                'Windows.')
+                        else:
+                            print('Not supported with `--query` set.')
                     elif response == '?':
                         numbers = f'1-{last_result}'
                         padding = len(numbers) - 1
