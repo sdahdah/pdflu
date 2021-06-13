@@ -113,25 +113,10 @@ def main():
     if args.interactive:
         print(_header('Querying Crossref and arXiv with:'))
         print(f'  "{query}"')
-    results_crossref = query_crossref(query, conf)
-    results_arxiv = query_arxiv(query, conf)
-    results_combined = results_crossref + results_arxiv
 
-    # Find number of words from query in title
-    common_words = []
-    query_words = query.split(' ')
-    for res in results_combined:
-        count = 0
-        title_words = res.title.split(' ')
-        for word in query_words:
-            if word in title_words:
-                count += 1
-        common_words.append(count)
-    # Sort by number of words from query in title
-    results_sorted = [res for _, res in sorted(
-        zip(common_words, results_combined),
-        key=lambda pair: pair[0],
-        reverse=True)]
+    # Query Crossref and arXiv
+    results_sorted = query_and_sort(query, conf)
+
     # Truncate sorted results list
     results = results_sorted[:conf.getint('pdflu', 'disp_query_results')]
 
@@ -536,6 +521,44 @@ def construct_query_from_pdf(file, conf):
                                                        'max_query_chars'):
                 query += (' ' + chunk)
     return query.strip()
+
+
+def query_and_sort(query, conf):
+    """Query Crossref and arXiv, then sort the results based on the common
+    words between the title and query.
+
+    Parameters
+    ----------
+    query : str
+        Query string.
+    conf : configparser.ConfigParser
+        Parsed config file.
+
+    Returns
+    -------
+    list(SearchResult) :
+        Sorted list of search results.
+    """
+    results_crossref = query_crossref(query, conf)
+    results_arxiv = query_arxiv(query, conf)
+    results_combined = results_crossref + results_arxiv
+
+    # Find number of words from query in title
+    common_words = []
+    query_words = query.split(' ')
+    for res in results_combined:
+        count = 0
+        title_words = res.title.split(' ')
+        for word in query_words:
+            if word in title_words:
+                count += 1
+        common_words.append(count)
+    # Sort by number of words from query in title
+    results_sorted = [res for _, res in sorted(
+        zip(common_words, results_combined),
+        key=lambda pair: pair[0],
+        reverse=True)]
+    return results_sorted
 
 
 def query_crossref(query, conf):
