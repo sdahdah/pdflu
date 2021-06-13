@@ -125,78 +125,15 @@ def main():
         sys.exit(0)
 
     if args.interactive:
-        print(_header('Best query result:'))
-        print(results[0].get_itemize('  - '))
-        valid_responses = ['', 'y', 'n', '?', 'q']
-        while True:
-            response = _prompt('Accept? [Y/n/?/q] ', valid_responses)
-            if response in ['', 'y']:
-                selected_result = 0
-                break
-            elif response == '?':
-                print('  y  yes  (default)')
-                print('  n  no')
-                print('  ?  help')
-                print('  q  quit')
-            elif response == 'q':
-                sys.exit(0)
-            else:
-                # Print results
-                max_chars = len(conf['pdflu']['disp_query_results'])
-                print(_header('All query results:'))
-                for i, res in enumerate(results):
-                    num_chars = len(str(i + 1))
-                    print(res.get_itemize(
-                        f"  {' ' * (max_chars - num_chars)}{i + 1}. "))
-                # Select a result
-                last_result = conf.getint('pdflu', 'disp_query_results')
-                valid_responses = ([str(i) for i in range(1, last_result+1)]
-                                   + ['', 's', 'o', '?', 'q'])
-                while True:
-                    response = _prompt(
-                        f'Select a result: [1-{last_result}/s/o/?/q] ',
-                        valid_responses)
-                    if response == '':
-                        selected_result = 0
-                        break
-                    elif response == 's':
-                        if not args.query:
-                            lines = conf.getint('pdflu', 'show_first_lines')
-                            raw_text = pdfminer.high_level.extract_text(
-                                    args.file_or_query, maxpages=1)
-                            split_text = raw_text.split('\n')[:lines]
-                            text = '  ' + '\n  '.join(split_text)
-                            print(text)
-                        else:
-                            print('Not supported with `--query` set.')
-                    elif response == 'o':
-                        if not args.query:
-                            if os.name == 'posix':
-                                subprocess.call(["xdg-open",
-                                                 args.file_or_query])
-                            else:
-                                logging.warning('Opening PDF not supported on '
-                                                'Windows.')
-                        else:
-                            print('Not supported with `--query` set.')
-                    elif response == '?':
-                        numbers = f'1-{last_result}'
-                        padding = len(numbers) - 1
-                        print(f"  {numbers}  entry to select (default: 1)")
-                        print(f"{' '*padding}  s  show first lines of PDF")
-                        print(f"{' '*padding}  o  open PDF (Linux only)")
-                        print(f"{' '*padding}  ?  help")
-                        print(f"{' '*padding}  q  quit")
-                    elif response == 'q':
-                        sys.exit(0)
-                    else:
-                        selected_result = int(response) - 1
-                        break
-                break
+        selected_result = interactive_select(results, conf)
     else:
-        selected_result = 0
+        selected_result = results[0]
 
-    bib_entry = results[selected_result].get_bibtex()
+    # Exit if interactive_select quit
+    if selected_result is None:
+        sys.exit(0)
+    else:
+        bib_entry = selected_result.get_bibtex()
 
     # Print selected entry
     if args.interactive:
@@ -434,6 +371,90 @@ class ArxivResult(SearchResult):
                 logging.warning('DOI empty for result `{self}`. Could not '
                                 'fetch BibTeX entry.')
         return self._bibtex
+
+
+def interactive_select(results, conf):
+    """Interactively pick the best search result from a list.
+
+    Parameters
+    ----------
+    results : list(SearchResult)
+        List of search results.
+
+    Returns
+    -------
+    SearchResult
+        Selected search result.
+    """
+    print(_header('Best query result:'))
+    print(results[0].get_itemize('  - '))
+    valid_responses = ['', 'y', 'n', '?', 'q']
+    while True:
+        response = _prompt('Accept? [Y/n/?/q] ', valid_responses)
+        if response in ['', 'y']:
+            selected_result = 0
+            break
+        elif response == '?':
+            print('  y  yes  (default)')
+            print('  n  no')
+            print('  ?  help')
+            print('  q  quit')
+        elif response == 'q':
+            return None
+        else:
+            # Print results
+            max_chars = len(conf['pdflu']['disp_query_results'])
+            print(_header('All query results:'))
+            for i, res in enumerate(results):
+                num_chars = len(str(i + 1))
+                print(res.get_itemize(
+                    f"  {' ' * (max_chars - num_chars)}{i + 1}. "))
+            # Select a result
+            last_result = conf.getint('pdflu', 'disp_query_results')
+            valid_responses = ([str(i) for i in range(1, last_result+1)]
+                               + ['', 's', 'o', '?', 'q'])
+            while True:
+                response = _prompt(
+                    f'Select a result: [1-{last_result}/s/o/?/q] ',
+                    valid_responses)
+                if response == '':
+                    selected_result = 0
+                    break
+                elif response == 's':
+                    if not args.query:
+                        lines = conf.getint('pdflu', 'show_first_lines')
+                        raw_text = pdfminer.high_level.extract_text(
+                                args.file_or_query, maxpages=1)
+                        split_text = raw_text.split('\n')[:lines]
+                        text = '  ' + '\n  '.join(split_text)
+                        print(text)
+                    else:
+                        print('Not supported with `--query` set.')
+                elif response == 'o':
+                    if not args.query:
+                        if os.name == 'posix':
+                            subprocess.call(["xdg-open",
+                                             args.file_or_query])
+                        else:
+                            logging.warning('Opening PDF not supported on '
+                                            'Windows.')
+                    else:
+                        print('Not supported with `--query` set.')
+                elif response == '?':
+                    numbers = f'1-{last_result}'
+                    padding = len(numbers) - 1
+                    print(f"  {numbers}  entry to select (default: 1)")
+                    print(f"{' '*padding}  s  show first lines of PDF")
+                    print(f"{' '*padding}  o  open PDF (Linux only)")
+                    print(f"{' '*padding}  ?  help")
+                    print(f"{' '*padding}  q  quit")
+                elif response == 'q':
+                    sys.exit(0)
+                else:
+                    selected_result = int(response) - 1
+                    break
+            break
+    return results[selected_result]
 
 
 def construct_query_from_pdf(file, conf):
