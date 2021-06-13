@@ -148,7 +148,6 @@ def main():
                     num_chars = len(str(i + 1))
                     print(res.get_itemize(
                         f"  {' ' * (max_chars - num_chars)}{i + 1}. "))
-
                 # Select a result
                 last_result = conf.getint('pdflu', 'disp_query_results')
                 valid_responses = ([str(i) for i in range(1, last_result+1)]
