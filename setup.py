@@ -15,5 +15,5 @@ setuptools.setup(
     entry_points={
         'console_scripts': ['pdflu=pdflu.pdflu:main'],
     },
-    install_requires=['habanero', 'pdfminer.six', 'termcolor', 'arxiv'],
+    install_requires=['habanero', 'pdfminer.six', 'termcolor', 'arxiv', 'pyperclip'],
 )

@@ -125,7 +125,7 @@ def main():
         sys.exit(0)
 
     if args.interactive:
-        selected_result = interactive_select(results, conf)
+        selected_result = interactive_select(results, conf, args)
     else:
         selected_result = results[0]
 
@@ -373,7 +373,7 @@ class ArxivResult(SearchResult):
         return self._bibtex
 
 
-def interactive_select(results, conf):
+def interactive_select(results, conf, args):
     """Interactively pick the best search result from a list.
 
     Parameters
@@ -648,8 +648,10 @@ def query_arxiv(query, conf):
     list[ArxivResult]
         List of results.
     """
-    result = arxiv.query(
-        query=query, max_results=conf.getint('pdflu', 'max_query_results'))
+    result = list(arxiv.Search(
+        query=query,
+        max_results=conf.getint('pdflu', 'max_query_results'),
+    ).results())
     if len(result) == 0:
         # Logging here
         print('No results from arXiv')
@@ -657,12 +659,12 @@ def query_arxiv(query, conf):
     results = []
     max_len = conf.getint('pdflu', 'max_query_results')
     for i in range(min(len(result), max_len)):
-        title = re.sub(r'\s+', ' ', result[i]['title'])
-        authors = result[i]['authors']
-        year = str(result[i]['published_parsed'].tm_year)
-        url = result[i]['id']
-        category = result[i]['arxiv_primary_category']['term']
-        doi = result[i]['doi']
+        title = re.sub(r'\s+', ' ', result[i].title)
+        authors = [str(a) for a in result[i].authors]
+        year = str(result[i].published.year)
+        url = result[i].entry_id
+        category = result[i].primary_category
+        doi = result[i].doi
         results.append(ArxivResult(title, authors, year, url, category, doi,
                                    conf['pdflu']['arxiv_bibtex_style']))
     return results
