@@ -15,7 +15,11 @@ log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 
 
-@click.group()
+@click.command()
+@click.argument(
+    'file',
+    type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
+)
 @click.option('--verbose', is_flag=True, help='Print detailed output.')
 @click.option('--debug', is_flag=True, help='Print debug information.')
 @click.option(
@@ -24,9 +28,21 @@ log.addHandler(logging.NullHandler())
     type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
     help='Specify configuration file.',
 )
-@click.pass_context
-def cli(ctx, verbose, debug, config):
-    """Manage BibTeX references."""
+@click.option(
+    '-q',
+    '--query',
+    type=str,
+    default=None,
+    help='Manually specified query. Only supported when adding one file.',
+)
+@click.option(
+    '-i',
+    '--interactive',
+    is_flag=True,
+    help='Run an interactive query.',
+)
+def cli(file, verbose, debug, config, query, interactive):
+    """Lookup BibTeX from PDF."""
     # Set logging level
     if debug:
         logging_level = logging.DEBUG
@@ -61,48 +77,22 @@ def cli(ctx, verbose, debug, config):
         200,
     }
     conf.read(_get_default_config_path() if config is None else config)
-    ctx.obj = {
-        'config': conf,
-    }
-
-
-@cli.command()
-@click.argument(
-    'file',
-    type=click.Path(exists=True, dir_okay=False, path_type=pathlib.Path),
-)
-@click.option(
-    '-q',
-    '--query',
-    type=str,
-    default=None,
-    help='Manually specified query. Only supported when adding one file.',
-)
-@click.option(
-    '-i',
-    '--interactive',
-    is_flag=True,
-    help='Run an interactive query.',
-)
-@click.pass_obj
-def lookup(obj, file, query, interactive):
-    """Add linked files to BibTeX library."""
-    config = obj['config']
+    # Start query
     if query:
         entries = _query_string(
             query,
-            limit=config.getint('pdflu', 'max_query_results'),
-            mailto=config.get('pdflu', 'polite_pool_email'),
+            limit=conf.getint('pdflu', 'max_query_results'),
+            mailto=conf.get('pdflu', 'polite_pool_email'),
         )
     else:
         # Get metadata
         metadata = parse.parse_pdf(
             file,
-            max_pages=config.getint('parsing', 'max_pages'),
-            max_lines=config.getint('parsing', 'max_lines'),
-            min_words=config.getint('parsing', 'min_words'),
-            max_words=config.getint('parsing', 'max_words'),
-            max_chars=config.getint('parsing', 'max_chars'),
+            max_pages=conf.getint('parsing', 'max_pages'),
+            max_lines=conf.getint('parsing', 'max_lines'),
+            min_words=conf.getint('parsing', 'min_words'),
+            max_words=conf.getint('parsing', 'max_words'),
+            max_chars=conf.getint('parsing', 'max_chars'),
         )
         if interactive:
             print('Metadata')
@@ -112,8 +102,8 @@ def lookup(obj, file, query, interactive):
         # Query online based on metadata
         entries = _query_file(
             metadata,
-            limit=config.getint('pdflu', 'max_query_results'),
-            mailto=config.get('pdflu', 'polite_pool_email'),
+            limit=conf.getint('pdflu', 'max_query_results'),
+            mailto=conf.get('pdflu', 'polite_pool_email'),
         )
         sel = 0
         if interactive:
@@ -146,7 +136,7 @@ def lookup(obj, file, query, interactive):
                 bibtexparser.middlewares.MergeNameParts(),
                 bibtexparser.middlewares.MergeCoAuthors(),
                 bibtexparser.middlewares.SortFieldsCustomMiddleware(
-                    order=config.get('pdflu', 'field_order').split(', ')),
+                    order=conf.get('pdflu', 'field_order').split(', ')),
             ],
             bibtex_format=bibtex_format,
         )
