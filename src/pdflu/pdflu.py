@@ -29,19 +29,12 @@ log.addHandler(logging.NullHandler())
     help='Specify configuration file.',
 )
 @click.option(
-    '-q',
-    '--query',
-    type=str,
-    default=None,
-    help='Manually specified query. Only supported when adding one file.',
-)
-@click.option(
     '-i',
     '--interactive',
     is_flag=True,
     help='Run an interactive query.',
 )
-def cli(file, verbose, debug, config, query, interactive):
+def cli(file, verbose, debug, config, interactive):
     """Lookup BibTeX from PDF."""
     # Set logging level
     if debug:
@@ -77,72 +70,64 @@ def cli(file, verbose, debug, config, query, interactive):
         200,
     }
     conf.read(_get_default_config_path() if config is None else config)
-    # Start query
-    if query:
-        entries = _query_string(
-            query,
-            limit=conf.getint('pdflu', 'max_query_results'),
-            mailto=conf.get('pdflu', 'polite_pool_email'),
-        )
-    else:
-        # Get metadata
-        metadata = parse.parse_pdf(
-            file,
-            max_pages=conf.getint('parsing', 'max_pages'),
-            max_lines=conf.getint('parsing', 'max_lines'),
-            min_words=conf.getint('parsing', 'min_words'),
-            max_words=conf.getint('parsing', 'max_words'),
-            max_chars=conf.getint('parsing', 'max_chars'),
-        )
-        if interactive:
-            print('Metadata')
-            print('--------')
-            print(metadata)
-            print()
-        # Query online based on metadata
-        entries = _query_file(
-            metadata,
-            limit=conf.getint('pdflu', 'max_query_results'),
-            mailto=conf.get('pdflu', 'polite_pool_email'),
-        )
-        sel = 0
-        if interactive:
-            print('Results')
-            print('-------')
-            for (k, result) in enumerate(entries):
-                result_str = str(result).replace('\n', '\n    ')
-                print(f'[{k}] {result_str}')
-            print('[q] quit')
-            sel_str = click.prompt('Selection', default='0')
-            print()
-            if sel_str == 'q':
-                return
-            else:
-                sel = int(sel_str)
-        if entries:
-            if (len(entries) > 1) and (sel < len(entries)) and interactive:
-                selected_entry = entries[sel].get_entry()
-            else:
-                selected_entry = entries[0].get_entry()
-        db = bibtexparser.Library()
-        db.add(selected_entry)
-        bibtex_format = bibtexparser.BibtexFormat()
-        bibtex_format.indent = '    '
-        bibtex_format.block_separator = '\n'
-        bibtex_format.trailing_comma = True
-        bib_str = bibtexparser.write_string(
-            db,
-            prepend_middleware=[
-                bibtexparser.middlewares.MergeNameParts(),
-                bibtexparser.middlewares.MergeCoAuthors(),
-                bibtexparser.middlewares.SortFieldsCustomMiddleware(
-                    order=conf.get('pdflu', 'field_order').split(', ')),
-            ],
-            bibtex_format=bibtex_format,
-        )
-        print('BibTeX')
-        print('------')
-        print(bib_str)
+    # Get metadata
+    metadata = parse.parse_pdf(
+        file,
+        max_pages=conf.getint('parsing', 'max_pages'),
+        max_lines=conf.getint('parsing', 'max_lines'),
+        min_words=conf.getint('parsing', 'min_words'),
+        max_words=conf.getint('parsing', 'max_words'),
+        max_chars=conf.getint('parsing', 'max_chars'),
+    )
+    if interactive:
+        print('Metadata')
+        print('--------')
+        print(metadata)
+        print()
+    # Query online based on metadata
+    entries = _query_file(
+        metadata,
+        limit=conf.getint('pdflu', 'max_query_results'),
+        mailto=conf.get('pdflu', 'polite_pool_email'),
+    )
+    sel = 0
+    if interactive:
+        print('Results')
+        print('-------')
+        for (k, result) in enumerate(entries):
+            result_str = str(result).replace('\n', '\n    ')
+            print(f'[{k}] {result_str}')
+        print('[q] quit')
+        sel_str = click.prompt('Selection', default='0')
+        print()
+        if sel_str == 'q':
+            return
+        else:
+            sel = int(sel_str)
+    if entries:
+        if (len(entries) > 1) and (sel < len(entries)) and interactive:
+            selected_entry = entries[sel].get_entry()
+        else:
+            selected_entry = entries[0].get_entry()
+    db = bibtexparser.Library()
+    db.add(selected_entry)
+    bibtex_format = bibtexparser.BibtexFormat()
+    bibtex_format.indent = '    '
+    bibtex_format.block_separator = '\n'
+    bibtex_format.trailing_comma = True
+    bib_str = bibtexparser.write_string(
+        db,
+        prepend_middleware=[
+            bibtexparser.middlewares.MergeNameParts(),
+            bibtexparser.middlewares.MergeCoAuthors(),
+            bibtexparser.middlewares.SortFieldsCustomMiddleware(
+                order=conf.get('pdflu', 'field_order').split(', ')),
+        ],
+        bibtex_format=bibtex_format,
+    )
+    print('BibTeX')
+    print('------')
+    print(bib_str)
 
 
 def _query_file(
