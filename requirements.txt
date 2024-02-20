@@ -1,4 +1,0 @@
-habanero
-pdfminer.six
-termcolor
-arxiv
