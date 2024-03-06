@@ -2,7 +2,7 @@
 
 Command line tool to find BibTeX entries from PDFs using Crossref and arXiv.
 
-Very much a work-in-progress right now
+Very much a work-in-progress right now.
 
 ## Usage
 
@@ -43,6 +43,7 @@ min_words = 2
 max_words = 30
 # Maximum number of characters in a query
 max_chars = 200
-```
 
 # vi: ft=conf
+```
+
