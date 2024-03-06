@@ -184,11 +184,15 @@ def _parse_pdf_metadata(path: pathlib.Path) -> Metadata:
             metadata.title = title
     except KeyError:
         pass
+    except AttributeError:
+        pass
     try:
         author = doc.info[0]['Author'].decode('utf-8', errors='ignore')
         if author:
             metadata.author = author
     except KeyError:
+        pass
+    except AttributeError:
         pass
     for key, value_b in doc.info[0].items():
         # Match arXiv ID
