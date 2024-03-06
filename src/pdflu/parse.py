@@ -84,10 +84,10 @@ def parse_pdf(
     )
     metadata = Metadata()
     # Set title
-    if pdf_metadata.title:
-        metadata.title = pdf_metadata.title
-    elif pdf_text.title:
+    if pdf_text.title:
         metadata.title = pdf_text.title
+    elif pdf_metadata.title:
+        metadata.title = pdf_metadata.title
     elif filename.title:
         metadata.title = filename.title
     # Set author
